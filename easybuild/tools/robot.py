@@ -44,7 +44,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easycon
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_common_path_prefix, search_file
+from easybuild.tools.filetools import det_common_path_prefix, search_file, find_easyconfigs
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
@@ -401,3 +401,44 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
             ])
 
     print '\n'.join(lines)
+
+
+def requires(ecs, robot_path):
+
+    depgraph = {}
+
+    def update_vertex(depgraph, name, dependencies=None, dependant=None):
+
+        if not name in depgraph:
+            depgraph[name] = {}
+            depgraph[name]['dependencies'] = []
+            depgraph[name]['dependants'] = []
+            
+        if dependencies:
+            depgraph[name]['dependencies'] = dependencies
+            for dependency in dependencies:
+                update_vertex(depgraph, dependency, dependant=name) 
+
+        if dependant:
+            depgraph[name]['dependants'].append(dependant)
+
+
+    ec_files = [ ec_file for path in robot_path for ec_file in find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs')) ]
+
+    for ec_file in ec_files:
+
+        try:
+            ec = process_easyconfig(ec_file)[0]
+            name = ec['full_mod_name']
+            dep_names = [ dependency['full_mod_name'] for dependency in ec['dependencies'] ]
+            update_vertex(depgraph, name, dependencies=dep_names)
+        except EasyBuildError, err:
+            _log.warning("Failed to process easyconfig %s: %s" % (ec_file, err))
+    
+    dependants = []
+    for ec in ecs:
+        name = ec['full_mod_name']
+        if name in depgraph:
+            dependants.extend(depgraph[name]['dependants'])
+
+    return dependants

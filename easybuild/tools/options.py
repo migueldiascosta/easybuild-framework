@@ -489,6 +489,8 @@ class EasyBuildOptions(GeneralOption):
                               ['simple', 'detailed']),
             'list-toolchains': ("Show list of known toolchains",
                                 None, 'store_true', False),
+            'requires': ("Search for reverse dependencies in the robot search path",
+                         None, 'store_true', False),
             'search': ("Search for easyconfig files in the robot search path, print full paths",
                        None, 'store', None, {'metavar': 'REGEX'}),
             'search-filename': ("Search for easyconfig files in the robot search path, print only filenames",
