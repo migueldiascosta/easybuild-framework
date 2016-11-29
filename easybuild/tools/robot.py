@@ -405,6 +405,9 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
 
 def requires(ecs, robot_path):
 
+    if 'MODULEPATH' in os.environ:
+        del os.environ['MODULEPATH']
+
     depgraph = {}
 
     def update_vertex(depgraph, name, dependencies=None, dependant=None):
