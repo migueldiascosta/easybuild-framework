@@ -60,7 +60,7 @@ from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token, new_pr, update_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
-from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs, requires
+from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs, reverse_dependencies
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
@@ -328,9 +328,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     easyconfigs, generated_ecs = parse_easyconfigs(paths)
 
     # search for reverse dependencies
-    if options.requires:
-        dependants = requires(easyconfigs, robot_path)
-        print dependants # TODO: format
+    if options.reverse_dependencies:
+        dependants = reverse_dependencies(easyconfigs, robot_path, options.include_easyblocks)
+        for dependant in sorted(dependants):
+            print dependant
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

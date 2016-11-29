@@ -403,41 +403,50 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     print '\n'.join(lines)
 
 
-def requires(ecs, robot_path):
+def reverse_dependencies(ecs, robot_path, ebs=None):
+    """Look in robot_path for reverse dependencies of given easyconfig(s)"""
 
-    if 'MODULEPATH' in os.environ:
-        del os.environ['MODULEPATH']
-
-    depgraph = {}
-
-    def update_vertex(depgraph, name, dependencies=None, dependant=None):
+    # function to update depgraph vertex with filename, dependencies and/or dependants
+    def update_vertex(depgraph, name, ec_file=None, dependencies=None, dependant=None):
 
         if not name in depgraph:
             depgraph[name] = {}
             depgraph[name]['dependencies'] = []
             depgraph[name]['dependants'] = []
-            
+
+        if ec_file:
+            depgraph[name]['spec'] = ec_file
+
         if dependencies:
             depgraph[name]['dependencies'] = dependencies
             for dependency in dependencies:
-                update_vertex(depgraph, dependency, dependant=name) 
+                update_vertex(depgraph, dependency, dependant=depgraph[name]['spec']) 
 
         if dependant:
             depgraph[name]['dependants'].append(dependant)
 
 
-    ec_files = [ ec_file for path in robot_path for ec_file in find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs')) ]
+    # make sure module path is clear
+    if 'MODULEPATH' in os.environ:
+        del os.environ['MODULEPATH']
 
+    depgraph = {}
+
+    # find all easyconfigs in robot_path
+    ec_files = [ ec_file for path in robot_path for ec_file in 
+                 find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs')) ]
+
+    # process each easyconfig in robot_path and add it to depgraph
     for ec_file in ec_files:
-
         try:
             ec = process_easyconfig(ec_file)[0]
             name = ec['full_mod_name']
             dep_names = [ dependency['full_mod_name'] for dependency in ec['dependencies'] ]
-            update_vertex(depgraph, name, dependencies=dep_names)
+            update_vertex(depgraph, name, ec_file, dependencies=dep_names)
         except EasyBuildError, err:
             _log.warning("Failed to process easyconfig %s: %s" % (ec_file, err))
     
+    # build list of dependants of requested easyconfig files
     dependants = []
     for ec in ecs:
         name = ec['full_mod_name']
