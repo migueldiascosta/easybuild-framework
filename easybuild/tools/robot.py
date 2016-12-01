@@ -41,12 +41,15 @@ from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.templates import template_constant_dict
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, search_file, find_easyconfigs
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
@@ -403,13 +406,48 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     print '\n'.join(lines)
 
 
-def reverse_dependencies(ecs, robot_path, ebs=None):
+def reverse_dependencies(paths, robot_path, ebs=None):
     """Look in robot_path for reverse dependencies of given easyconfig(s)"""
 
-    # function to update depgraph vertex with filename, dependencies and/or dependants
+    # auxiliarly funcion to get unique software and dependency names and versions from easyconfig
+    def get_easyconfig_names(ec_file):
+        ec = EasyConfigParser(ec_file).get_config_dict()
+        template_values = template_constant_dict(ec)
+
+        name = "%(name)s/%(version)s" % ec
+
+        if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+            name += "-%(name)s-%(version)s" % ec['toolchain']
+
+            if 'versionsuffix' in ec:
+                versionsuffix = ec['versionsuffix'] % template_values
+                name += versionsuffix
+
+        dep_names = []
+        if 'dependencies' in ec:
+            for dependency in ec['dependencies']:
+
+                dep_name = "%s/%s" % dependency[:2]
+
+                if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                    dep_name += "-%(name)s-%(version)s" % ec['toolchain']
+
+                # dependency versionsuffix
+                if len(dependency) == 3:
+                    dep_name += dependency[2] % template_values
+
+                dep_names.append(dep_name)
+
+        # also include toolchain as dependency
+        if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+            dep_names.append("%(name)s/%(version)s" % ec['toolchain'])
+
+        return (name, dep_names)
+
+    # auxiliary function to update depgraph vertex with filename, dependencies and/or dependants
     def update_vertex(depgraph, name, ec_file=None, dependencies=None, dependant=None):
 
-        if not name in depgraph:
+        if name not in depgraph:
             depgraph[name] = {}
             depgraph[name]['dependencies'] = []
             depgraph[name]['dependants'] = []
@@ -420,36 +458,33 @@ def reverse_dependencies(ecs, robot_path, ebs=None):
         if dependencies:
             depgraph[name]['dependencies'] = dependencies
             for dependency in dependencies:
-                update_vertex(depgraph, dependency, dependant=depgraph[name]['spec']) 
+                update_vertex(depgraph, dependency, dependant=depgraph[name]['spec'])
 
         if dependant:
             depgraph[name]['dependants'].append(dependant)
 
-
-    # make sure module path is clear
-    if 'MODULEPATH' in os.environ:
-        del os.environ['MODULEPATH']
-
     depgraph = {}
 
     # find all easyconfigs in robot_path
-    ec_files = [ ec_file for path in robot_path for ec_file in 
-                 find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs')) ]
+    ec_files = [ec_file for path in robot_path for ec_file in
+                find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))]
 
     # process each easyconfig in robot_path and add it to depgraph
     for ec_file in ec_files:
         try:
-            ec = process_easyconfig(ec_file)[0]
-            name = ec['full_mod_name']
-            dep_names = [ dependency['full_mod_name'] for dependency in ec['dependencies'] ]
+            name, dep_names = get_easyconfig_names(ec_file)
             update_vertex(depgraph, name, ec_file, dependencies=dep_names)
         except EasyBuildError, err:
             _log.warning("Failed to process easyconfig %s: %s" % (ec_file, err))
-    
+
+    # find all easyconfigs in paths
+    ec_files = [ec_file for path in paths for ec_file in
+                find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))]
+
     # build list of dependants of requested easyconfig files
     dependants = []
-    for ec in ecs:
-        name = ec['full_mod_name']
+    for ec_file in ec_files:
+        name, dep_names = get_easyconfig_names(ec_file)
         if name in depgraph:
             dependants.extend(depgraph[name]['dependants'])
 
