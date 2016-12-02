@@ -329,7 +329,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if options.reverse_dependencies:
         dependants = reverse_dependencies([path[0] for path in paths], robot_path, options.include_easyblocks)
         for dependant in sorted(dependants):
-            print dependant
+            print(dependant)
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

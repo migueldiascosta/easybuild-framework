@@ -474,7 +474,7 @@ def reverse_dependencies(paths, robot_path, ebs=None):
         if dependant:
             depgraph[name]['dependants'].add(dependant)
 
-    # auxiliar function to get implicit dependants
+    # auxiliary function to get implicit dependants
     def find_dependants(depgraph, name, result):
         for dependant in depgraph[name]['dependants']:
             result.add(depgraph[dependant]['spec'])
@@ -507,7 +507,7 @@ def reverse_dependencies(paths, robot_path, ebs=None):
                 ec_dependants = set()
                 find_dependants(depgraph, name, ec_dependants)
             except RuntimeError as err:
-                print "WARNING: possible circular dependency for", name
+                sys.stderr.write("WARNING: possible circular dependency for %s\n" % name)
             all_dependants |= ec_dependants
 
     return all_dependants
