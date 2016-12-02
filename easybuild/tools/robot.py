@@ -428,10 +428,10 @@ def reverse_dependencies(paths, robot_path, ebs=None):
 
         if 'dependencies' in ec:
             dependencies.extend(ec['dependencies'])
-        
+
         if 'builddependencies' in ec:
             dependencies.extend(ec['builddependencies'])
-            
+
         for dependency in dependencies:
 
             dep_name = "%s/%s" % dependency[:2]
@@ -461,7 +461,7 @@ def reverse_dependencies(paths, robot_path, ebs=None):
         if name not in depgraph:
             depgraph[name] = {}
             depgraph[name]['dependencies'] = []
-            depgraph[name]['dependants'] = []
+            depgraph[name]['dependants'] = set()
 
         if ec_file:
             depgraph[name]['spec'] = ec_file
@@ -469,10 +469,16 @@ def reverse_dependencies(paths, robot_path, ebs=None):
         if dependencies:
             depgraph[name]['dependencies'] = dependencies
             for dependency in dependencies:
-                update_vertex(depgraph, dependency, dependant=depgraph[name]['spec'])
+                update_vertex(depgraph, dependency, dependant=name)
 
         if dependant:
-            depgraph[name]['dependants'].append(dependant)
+            depgraph[name]['dependants'].add(dependant)
+
+    # auxiliar function to get implicit dependants
+    def find_dependants(depgraph, name, result):
+        for dependant in depgraph[name]['dependants']:
+            result.add(depgraph[dependant]['spec'])
+            find_dependants(depgraph, dependant, result)
 
     depgraph = {}
 
@@ -493,10 +499,10 @@ def reverse_dependencies(paths, robot_path, ebs=None):
                 find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))]
 
     # build list of dependants of requested easyconfig files
-    dependants = []
+    result = set()
     for ec_file in ec_files:
         name, dep_names = get_easyconfig_names(ec_file)
         if name in depgraph:
-            dependants.extend(depgraph[name]['dependants'])
+            find_dependants(depgraph, name, result)
 
-    return dependants
+    return result
