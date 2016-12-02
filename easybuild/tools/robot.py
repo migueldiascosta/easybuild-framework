@@ -424,23 +424,30 @@ def reverse_dependencies(paths, robot_path, ebs=None):
                 name += versionsuffix
 
         dep_names = []
+        dependencies = []
+
         if 'dependencies' in ec:
-            for dependency in ec['dependencies']:
+            dependencies.extend(ec['dependencies'])
+        
+        if 'builddependencies' in ec:
+            dependencies.extend(ec['builddependencies'])
+            
+        for dependency in dependencies:
 
-                dep_name = "%s/%s" % dependency[:2]
+            dep_name = "%s/%s" % dependency[:2]
 
-                # dependency toolchain
-                if (len(dependency) == 4 and isinstance(dependency[3], tuple) and
-                        len(dependency[3]) == 2 and dependency[3][0] != DUMMY_TOOLCHAIN_NAME):
-                    dep_name += "-%s-%s" % (dependency[3][0], dependency[3][1])
-                else:
-                    dep_name += "-%(name)s-%(version)s" % ec['toolchain']
+            # dependency toolchain
+            if (len(dependency) == 4 and isinstance(dependency[3], tuple) and
+                    len(dependency[3]) == 2 and dependency[3][0] != DUMMY_TOOLCHAIN_NAME):
+                dep_name += "-%s-%s" % (dependency[3][0], dependency[3][1])
+            else:
+                dep_name += "-%(name)s-%(version)s" % ec['toolchain']
 
-                # dependency versionsuffix
-                if len(dependency) >= 3:
-                    dep_name += dependency[2] % template_values
+            # dependency versionsuffix
+            if len(dependency) >= 3:
+                dep_name += dependency[2] % template_values
 
-                dep_names.append(dep_name)
+            dep_names.append(dep_name)
 
         # also include toolchain as dependency
         if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
