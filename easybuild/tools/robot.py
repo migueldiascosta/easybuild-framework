@@ -409,7 +409,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
 def reverse_dependencies(paths, robot_path, ebs=None):
     """Look in robot_path for reverse dependencies of given easyconfig(s)"""
 
-    # auxiliarly funcion to get unique software and dependency names and versions from easyconfig
+    # auxiliary function to get unique software and dependency names and versions from easyconfig
     def get_easyconfig_names(ec_file):
         ec = EasyConfigParser(ec_file).get_config_dict()
         template_values = template_constant_dict(ec)
@@ -429,11 +429,15 @@ def reverse_dependencies(paths, robot_path, ebs=None):
 
                 dep_name = "%s/%s" % dependency[:2]
 
-                if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                # dependency toolchain
+                if (len(dependency) == 4 and isinstance(dependency[3], tuple) and
+                        len(dependency[3]) == 2 and dependency[3][0] != DUMMY_TOOLCHAIN_NAME):
+                    dep_name += "-%s-%s" % (dependency[3][0], dependency[3][1])
+                else:
                     dep_name += "-%(name)s-%(version)s" % ec['toolchain']
 
                 # dependency versionsuffix
-                if len(dependency) == 3:
+                if len(dependency) >= 3:
                     dep_name += dependency[2] % template_values
 
                 dep_names.append(dep_name)
