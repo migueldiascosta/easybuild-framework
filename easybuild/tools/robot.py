@@ -419,9 +419,9 @@ def reverse_dependencies(paths, robot_path, ebs=None):
         if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
             name += "-%(name)s-%(version)s" % ec['toolchain']
 
-            if 'versionsuffix' in ec:
-                versionsuffix = ec['versionsuffix'] % template_values
-                name += versionsuffix
+        if 'versionsuffix' in ec:
+            versionsuffix = ec['versionsuffix'] % template_values
+            name += versionsuffix
 
         dep_names = []
         dependencies = []
@@ -441,7 +441,8 @@ def reverse_dependencies(paths, robot_path, ebs=None):
                     len(dependency[3]) == 2 and dependency[3][0] != DUMMY_TOOLCHAIN_NAME):
                 dep_name += "-%s-%s" % (dependency[3][0], dependency[3][1])
             else:
-                dep_name += "-%(name)s-%(version)s" % ec['toolchain']
+                if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                    dep_name += "-%(name)s-%(version)s" % ec['toolchain']
 
             # dependency versionsuffix
             if len(dependency) >= 3:
@@ -507,7 +508,7 @@ def reverse_dependencies(paths, robot_path, ebs=None):
                 ec_dependants = set()
                 find_dependants(depgraph, name, ec_dependants)
             except RuntimeError as err:
-                sys.stderr.write("WARNING: possible circular dependency for %s\n" % name)
+                sys.stderr.write("WARNING: possible circular dependency for %s, skipping it\n" % name)
             all_dependants |= ec_dependants
 
     return all_dependants
