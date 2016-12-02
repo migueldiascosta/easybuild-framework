@@ -60,7 +60,8 @@ from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token, new_pr, update_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
-from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs, reverse_dependencies
+from easybuild.tools.robot import (check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs,
+                                   reverse_dependencies)
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
@@ -324,9 +325,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
 
-    # read easyconfig files
-    easyconfigs, generated_ecs = parse_easyconfigs(paths)
-
     # search for reverse dependencies
     if options.reverse_dependencies:
         dependants = reverse_dependencies([path[0] for path in paths], robot_path, options.include_easyblocks)
@@ -334,6 +332,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             print dependant
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
+
+    # read easyconfig files
+    easyconfigs, generated_ecs = parse_easyconfigs(paths)
 
     # tweak obtained easyconfig files, if requested
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail

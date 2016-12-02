@@ -499,10 +499,15 @@ def reverse_dependencies(paths, robot_path, ebs=None):
                 find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))]
 
     # build list of dependants of requested easyconfig files
-    result = set()
+    all_dependants = set()
     for ec_file in ec_files:
         name, dep_names = get_easyconfig_names(ec_file)
         if name in depgraph:
-            find_dependants(depgraph, name, result)
+            try:
+                ec_dependants = set()
+                find_dependants(depgraph, name, ec_dependants)
+            except RuntimeError as err:
+                print "WARNING: possible circular dependency for", name
+            all_dependants |= ec_dependants
 
-    return result
+    return all_dependants
