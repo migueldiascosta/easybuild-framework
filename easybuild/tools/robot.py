@@ -437,9 +437,12 @@ def reverse_dependencies(paths, robot_path, ebs=None):
             dep_name = "%s/%s" % dependency[:2]
 
             # dependency toolchain
-            if (len(dependency) == 4 and isinstance(dependency[3], tuple) and
-                    len(dependency[3]) == 2 and dependency[3][0] != DUMMY_TOOLCHAIN_NAME):
-                dep_name += "-%s-%s" % (dependency[3][0], dependency[3][1])
+            if len(dependency) == 4:
+                if isinstance(dependency[3], tuple):
+                    if len(dependency[3]) == 2 and dependency[3][0] != DUMMY_TOOLCHAIN_NAME:
+                        dep_name += "-%s-%s" % (dependency[3][0], dependency[3][1])
+                elif isinstance(dependency[3], bool) and not dependency[3]:
+                    dep_name += "-%(name)s-%(version)s" % ec['toolchain']
             else:
                 if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
                     dep_name += "-%(name)s-%(version)s" % ec['toolchain']
