@@ -160,6 +160,7 @@ BUILD_OPTIONS_CMDLINE = {
         'use_ccache',
         'use_f90cache',
         'use_existing_modules',
+        'verify_source_urls',
     ],
     True: [
         'cleanup_builddir',

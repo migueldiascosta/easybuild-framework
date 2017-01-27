@@ -66,7 +66,7 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, derive_alt_pypi_url
-from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file, verify_url
 from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
@@ -219,7 +219,7 @@ class EasyBlock(object):
         self.silent = build_option('silent')
 
         # are we doing a dry run?
-        self.dry_run = build_option('extended_dry_run')
+        self.dry_run = build_option('extended_dry_run') or build_option('verify_source_urls')
 
         # initialize logger
         self._init_log()
@@ -333,7 +333,7 @@ class EasyBlock(object):
                 source = src_entry
 
             # check if the sources can be located
-            path = self.obtain_file(source)
+            path = self.obtain_file(source, verify=build_option('verify_source_urls'))
             if path:
                 self.log.debug('File %s found for source %s' % (path, source))
                 self.src.append({
@@ -506,7 +506,7 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None):
+    def obtain_file(self, filename, extension=False, urls=None, verify=False):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -531,6 +531,11 @@ class EasyBlock(object):
 
             try:
                 fullpath = os.path.join(filepath, filename)
+
+                if verify:
+                    if not verify_url(url):
+                        self.dry_run_msg("    * Could not open %s" % url)
+                    return fullpath
 
                 # only download when it's not there yet
                 if os.path.exists(fullpath):
@@ -596,7 +601,7 @@ class EasyBlock(object):
                 if foundfile:
                     break  # no need to try other source paths
 
-            if foundfile:
+            if foundfile and not verify:
                 if self.dry_run:
                     self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
@@ -646,7 +651,11 @@ class EasyBlock(object):
                         if extension and urls:
                             # extensions typically have custom source URLs specified, only mention first
                             self.dry_run_msg("    (from %s, ...)", fullurl)
-                        downloaded = True
+
+                        if verify:
+                            downloaded = verify_url(fullurl)
+                        else:
+                            downloaded = True
 
                     else:
                         self.log.debug("Trying to download file %s from %s to %s ..." % (filename, fullurl, targetpath))
@@ -669,6 +678,8 @@ class EasyBlock(object):
 
                 if self.dry_run:
                     self.dry_run_msg("  * %s (MISSING)", filename)
+                    if verify and failedpaths[-1].startswith("http") or failedpaths[-1].startswith("ftp"):
+                        self.dry_run_msg("   * Could not open %s" % failedpaths[-1])
                     return filename
                 else:
                     raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "

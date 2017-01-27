@@ -264,6 +264,7 @@ class EasyBuildOptions(GeneralOption):
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
+            'verify-source-urls': ("Only verify source urls", None, 'store_true', False),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -729,6 +730,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.show_config or self.options.show_full_config:
             self.show_config()
             cleanup_and_exit(self.tmpdir)
+
+        # --verify-source-urls implies --stop=fetch
+        if self.options.verify_source_urls:
+            self.options.stop = 'fetch'
 
     def _postprocess_include(self):
         """Postprocess --include options."""

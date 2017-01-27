@@ -1417,3 +1417,10 @@ def copy_file(path, target_path, force_in_dry_run=False):
             _log.info("%s copied to %s", path, target_path)
         except OSError as err:
             raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+
+def verify_url(url):
+    try:
+        url_fd = urllib2.urlopen(url)
+    except (urllib2.HTTPError, urllib2.URLError):
+        return False
+    return True
