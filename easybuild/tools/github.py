@@ -756,8 +756,12 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     git_repo.index.add(dep_info['paths_in_repo'])
 
     if paths['patch_files']:
-        _log.debug("Staging all %d new/modified patch files", len(patch_info['paths_in_repo']))
-        git_repo.index.add(patch_info['paths_in_repo'])
+        staging_patch_msg = "Staging all %d new/modified patch files" % len(patch_info['paths_in_repo'])
+        if build_option('extended_dry_run'):
+            _log.debug(staging_patch_msg + " [DRY RUN]")
+        else:
+            _log.debug(staging_patch_msg)
+            git_repo.index.add(patch_info['paths_in_repo'])
 
     # stage deleted files
     if deleted_paths:
