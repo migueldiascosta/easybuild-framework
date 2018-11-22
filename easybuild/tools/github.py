@@ -1017,7 +1017,7 @@ def list_prs(params, per_page=GITHUB_MAX_PER_PAGE):
         """Utility function to fetch data for PRs."""
         return gh.repos[pr_target_account][pr_target_repo].pulls
 
-    status, pr_data = github_api_get_request(pr_url, None, **parameters)
+    status, pr_data = github_api_get_request(pr_url, **parameters)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get PR data from %s/%s (parameters: %s, status: %d %s)",
                              pr_target_account, pr_target_repo, parameters, status, pr_data)
