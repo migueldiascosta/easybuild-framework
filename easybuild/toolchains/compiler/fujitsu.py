@@ -23,9 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for the Fujitsu compiler drivers (aka fcc, frt).
-
-The basic concept is the same as for the Cray Programming Environment.
+Support for the Fujitsu compilers (i.e. fcc, frt).
 
 :author: Miguel Dias Costa (National University of Singapore)
 """
@@ -34,18 +32,16 @@ import re
 
 import easybuild.tools.environment as env
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import which
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
 
 TC_CONSTANT_FUJITSU = 'Fujitsu'
-TC_CONSTANT_MODULE_NAME = 'lang'
-TC_CONSTANT_MODULE_VAR = 'FJSVXTCLANGA'
 
 
 class FujitsuCompiler(Compiler):
     """Generic support for using Fujitsu compiler drivers."""
     TOOLCHAIN_FAMILY = TC_CONSTANT_FUJITSU
-
-    COMPILER_MODULE_NAME = [TC_CONSTANT_MODULE_NAME]
     COMPILER_FAMILY = TC_CONSTANT_FUJITSU
 
     COMPILER_CC = 'fcc'
@@ -86,7 +82,16 @@ class FujitsuCompiler(Compiler):
         (systemtools.AARCH64, systemtools.ARM): '-mcpu=generic -mtune=generic',
     }
 
+    compiler_prefix = None
+
     def prepare(self, *args, **kwargs):
+
+        try:
+            self.compiler_prefix = os.path.split(os.path.dirname(which(self.COMPILER_CC)))[0]
+        except TypeError:
+            raise EasyBuildError("Could not find path to Fujitsu compiler. You may need to load the correct module"
+                                 "for your system.")
+
         super(FujitsuCompiler, self).prepare(*args, **kwargs)
 
         # fcc doesn't accept e.g. -std=c++11 or -std=gnu++11, only -std=c11 or -std=gnu11
@@ -96,12 +101,26 @@ class FujitsuCompiler(Compiler):
             self.vars['CFLAGS'] = re.sub(pattern, r'-std=\1\2', self.vars['CFLAGS'])
             self._setenv_variables()
 
-        # make sure the fujitsu module libraries are found (and added to rpath by wrapper)
-        library_path = os.getenv('LIBRARY_PATH', '')
-        libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
-        if libdir not in library_path:
-            self.log.debug("Adding %s to $LIBRARY_PATH" % libdir)
-            env.setvar('LIBRARY_PATH', os.pathsep.join([library_path, libdir]))
+        # make sure fujitsu compiler paths are added to the relevant environment variables
+        clang_libdir = os.path.join('clang-comp', 'lib64')
+        path_variables = {'bin': ['PATH'],
+                          'lib64': ['LIBRARY_PATH', 'LD_LIBRARY_PATH'],
+                          clang_libdir: ['LIBRARY_PATH', 'LD_LIBRARY_PATH']}
+        for subdir, var_names in path_variables.items():
+            for var_name in var_names:
+                var_value = os.getenv(var_name, '')
+                path = os.path.join(self.compiler_prefix, subdir)
+                if path not in var_value:
+                    self.log.debug("Adding %s to $%s" % (path, var_name))
+                    env.setvar(var_name, os.pathsep.join([var_value, path]))
+
+        # make sure compiler_prefix/include folder is not in environment, conflicts with clang mode
+        inc_path = os.path.join(self.compiler_prefix, 'include')
+        for var_name in os.environ:
+            var_value = os.getenv(var_name, '')
+            if inc_path in var_value:
+                self.log.debug("Removing %s from $%s" % (inc_path, var_name))
+                env.setvar(var_name, os.pathsep.join([p for p in var_value.split(os.pathsep) if inc_path not in p]))
 
     def _set_compiler_vars(self):
         super(FujitsuCompiler, self)._set_compiler_vars()
@@ -110,7 +129,8 @@ class FujitsuCompiler(Compiler):
         self.variables.nappend('CFLAGS', ['Nclang'])
         self.variables.nappend('CXXFLAGS', ['Nclang'])
 
-        # also add fujitsu module library path to LDFLAGS
-        libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
-        self.log.debug("Adding %s to $LDFLAGS" % libdir)
-        self.variables.nappend('LDFLAGS', [libdir])
+        # also add fujitsu module library paths to LDFLAGS
+        for subdir in ['', 'clang-comp']:
+            libdir = os.path.join(self.compiler_prefix, subdir, 'lib64')
+            self.log.debug("Adding %s to $LDFLAGS" % libdir)
+            self.variables.nappend('LDFLAGS', [libdir])

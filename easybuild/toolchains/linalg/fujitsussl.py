@@ -27,10 +27,6 @@ Support for Fujitsu's SSL library, which provides BLAS/LAPACK support.
 
 :author: Miguel Dias Costa (National University of Singapore)
 """
-import os
-
-from easybuild.toolchains.compiler.fujitsu import TC_CONSTANT_MODULE_NAME, TC_CONSTANT_MODULE_VAR
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.constants import COMPILER_FLAGS
 from easybuild.tools.toolchain.linalg import LinAlg
 
@@ -40,9 +36,7 @@ TC_CONSTANT_FUJITSU_SSL = 'FujitsuSSL'
 
 class FujitsuSSL(LinAlg):
     """Support for Fujitsu's SSL library, which provides BLAS/LAPACK support."""
-    # BLAS/LAPACK support
-    # via lang/tcsds module
-    BLAS_MODULE_NAME = [TC_CONSTANT_MODULE_NAME]
+    BLAS_MODULE_NAME = []
 
     # no need to specify libraries nor includes, only the compiler flags below
     BLAS_LIB = ['']
@@ -68,20 +62,6 @@ class FujitsuSSL(LinAlg):
     SCALAPACK_INCLUDE_DIR = ['']
     SCALAPACK_FAMILY = TC_CONSTANT_FUJITSU_SSL
 
-    def _get_software_root(self, name, required=True):
-        """Get install prefix for specified software name; special treatment for Fujitsu modules."""
-        if name == TC_CONSTANT_MODULE_NAME:
-            env_var = TC_CONSTANT_MODULE_VAR
-            root = os.getenv(env_var)
-            if root is None:
-                raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
-            else:
-                self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
-        else:
-            root = super(FujitsuSSL, self)._get_software_root(name, required=required)
-
-        return root
-
     def _set_blas_variables(self):
         """Setting FujitsuSSL specific BLAS related variables"""
         super(FujitsuSSL, self)._set_blas_variables()
@@ -91,6 +71,9 @@ class FujitsuSSL(LinAlg):
         else:
             for flags_var, _ in COMPILER_FLAGS:
                 self.variables.nappend(flags_var, ['SSL2'])
+
+        self.variables.nappend('BLAS_INC_DIR', [''])
+        self.variables.nappend('BLAS_LIB_DIR', [''])
 
     def _set_scalapack_variables(self):
         """Setting FujitsuSSL specific SCALAPACK related variables"""
